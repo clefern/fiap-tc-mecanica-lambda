@@ -92,8 +92,8 @@ export const handler = async (
   }
 
   const { token, expiresIn } = issueAccessToken({
-    sub: cliente.id,
     email: cliente.email,
+    clienteId: cliente.id,
     role: "CLIENTE",
   });
 
