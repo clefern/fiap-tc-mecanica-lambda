@@ -5,6 +5,7 @@ vi.mock("../src/repository", () => ({
 }));
 
 import type { APIGatewayProxyEvent, Context } from "aws-lambda";
+import jwt from "jsonwebtoken";
 import { handler } from "../src/handler";
 import { findClienteByDocumento } from "../src/repository";
 
@@ -28,10 +29,13 @@ const buildEvent = (body: unknown): APIGatewayProxyEvent =>
 
 const ctx = {} as Context;
 
+/** 32 bytes → Base64, mesma convenção do Spring `Decoders.BASE64.decode(secretKey)`. */
+const testJwtSecretB64 = Buffer.alloc(32, 0xab).toString("base64");
+
 describe("handler", () => {
   beforeEach(() => {
     mockFind.mockReset();
-    process.env.SECURITY_JWT_SECRET_KEY = "test-secret-must-be-long-enough-256bit-aaaaaaa";
+    process.env.SECURITY_JWT_SECRET_KEY = testJwtSecretB64;
   });
 
   it("retorna 400 quando body é JSON inválido", async () => {
@@ -90,5 +94,15 @@ describe("handler", () => {
     expect(body.token_type).toBe("Bearer");
     expect(body.access_token).toMatch(/^eyJ/);
     expect(body.cliente.nome).toBe("Fulano");
+    const payload = jwt.verify(body.access_token, Buffer.from(testJwtSecretB64, "base64"), {
+      algorithms: ["HS256"],
+    });
+    expect(typeof payload === "object" && payload && "sub" in payload).toBe(true);
+    if (typeof payload === "object" && payload && "sub" in payload) {
+      const p = payload as jwt.JwtPayload;
+      expect(p.sub).toBe("fulano@mecanica.com");
+      expect(p.id).toBe("11111111-1111-1111-1111-111111111111");
+      expect(p.role).toBe("CLIENTE");
+    }
   });
 });

@@ -1,0 +1,14 @@
+{
+  "body": "{\"cpf\":\"529.982.247-25\"}",
+  "headers": { "Content-Type": "application/json" },
+  "httpMethod": "POST",
+  "isBase64Encoded": false,
+  "path": "/auth",
+  "pathParameters": null,
+  "queryStringParameters": null,
+  "requestContext": {
+    "requestId": "local-test",
+    "stage": "Prod"
+  },
+  "resource": "/auth"
+}

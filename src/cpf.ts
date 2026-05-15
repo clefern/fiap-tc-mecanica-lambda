@@ -1,7 +1,6 @@
 const onlyDigits = (raw: string): string => raw.replace(/\D/g, "");
 
-const allSameDigit = (digits: string): boolean =>
-  /^(\d)\1+$/.test(digits);
+const allSameDigit = (digits: string): boolean => /^(\d)\1+$/.test(digits);
 
 const calcVerifier = (digits: string, factor: number): number => {
   let total = 0;

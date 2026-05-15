@@ -15,10 +15,7 @@ Function Serverless que recebe o **CPF do cliente**, consulta sua existência e 
 
 ## Estado atual
 
-> 🚧 **Scaffold inicial** — handler completo (validação CPF, lookup, emissão JWT) mas pendente:
-> - Empacotamento via SAM (`template.yaml` está pronto, mas falta a primeira esteira `sam deploy`)
-> - VPC config real (precisa dos `subnet_ids` + `security_group_id` do RDS provisionado em `fiap-tc-mecanica-infra-db`)
-> - API Gateway na frente — neste momento o `template.yaml` provisiona um `AWS::Serverless::Api` gerenciado pelo SAM; a integração com o NGINX Ingress (provisionado em `infra-k8s`) será planejada na próxima leva
+> Handler completo: validação de CPF, consulta `clientes` + `users` no RDS, cliente ativo (`account_status`), JWT HS256 **compatível com o Spring** (`sub` = email, secret **Base64** como no `JwtService`). Pendências típicas de deploy: primeira esteira `sam deploy`, VPC (subnets + SG liberando 5432 para a Lambda).
 
 ## Como funciona
 
@@ -32,13 +29,13 @@ Cliente  →  POST /auth { cpf }  →  API Gateway  →  Lambda
                                             (lookup por documento)
                                                      │
                                                      ▼
-                                            jwt.sign(HS256, SECURITY_JWT_SECRET_KEY)
+                                            jwt.sign(HS256, Buffer.from(SECURITY_JWT_SECRET_KEY, "base64"))
                                                      │
                                                      ▼
                             { access_token, token_type: "Bearer", expires_in, cliente }
 ```
 
-A app Spring Boot (`fiap-tc-mecanica-app`) valida esse JWT **sem modificação** via o `JwtAuthenticationFilter` existente — basta a Lambda usar **a mesma secret HS256** que está no Secret K8s `SECURITY_JWT_SECRET_KEY`.
+A app Spring Boot (`fiap-tc-mecanica-app`) valida esse JWT via o `JwtAuthenticationFilter` / `JwtService`: a chave em `SECURITY_JWT_SECRET_KEY` é **Base64 dos bytes HMAC** (igual `Decoders.BASE64.decode` no Java), e o **subject** do token deve ser o **e-mail** do usuário (mesmo contrato do login interno).
 
 ## Tecnologias
 
@@ -155,7 +152,7 @@ Erros:
 ## Roadmap
 
 1. Empacotamento + primeiro deploy SAM (`sam deploy --guided`)
-2. Integração com o NGINX Ingress (`/auth` proxy → API Gateway)
+2. (Opcional) Host único no DNS: CNAME para o NLB do NGINX (API) + URL separada do API Gateway (`execute-api`) para `POST /auth`, ou uso de **Traefik** / compose local como em `fiap-tc-mecanica-java-original`
 3. RFC-003 — Estratégia de auth CPF (registrar no repo `fiap-tc-mecanica-app/docs/RFCs/`)
 4. Diagrama de sequência (cliente → API Gateway → Lambda → RDS → JWT) no C4 da app
 5. Métricas Lambda (CloudWatch → APM Datadog/New Relic, decisão pendente em OBS-001)

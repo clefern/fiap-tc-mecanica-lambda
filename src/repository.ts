@@ -35,9 +35,12 @@ export const findClienteByDocumento = async (
       email: string;
       ativo: boolean;
     }>(
-      `SELECT c.id::text AS id, c.nome, c.email, c.ativo
+      `SELECT u.id::text AS id, u.nome, u.email, u.account_status AS ativo
          FROM clientes c
+         INNER JOIN users u ON u.id = c.id
         WHERE c.documento = $1
+          AND u.user_type = 'CLIENTE'
+          AND u.role = 'CLIENTE'
         LIMIT 1`,
       [documento],
     );
