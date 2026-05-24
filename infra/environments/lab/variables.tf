@@ -1,7 +1,8 @@
 variable "profile" {
-  description = "AWS profile (default fiap-lab)"
+  description = "AWS profile (null in CI — use env credentials)"
   type        = string
   default     = "fiap-lab"
+  nullable    = true
 }
 
 variable "jwt_secret" {
