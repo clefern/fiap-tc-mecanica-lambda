@@ -1,0 +1,3 @@
+# Copie para terraform.tfvars (gitignored). tf_state_bucket vem de TF_STATE_BUCKET após bootstrap.
+# jwt_secret     = "..."
+# tf_state_bucket = "fiap-tc-lab-tfstate-123456789012"

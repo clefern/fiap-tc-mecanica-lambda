@@ -92,6 +92,19 @@ sam local invoke AuthFunction --event events/auth-cliente-ativo.json
 
 ## Deploy
 
+### Terraform (recomendado — Fase 3)
+
+State separado em `infra/` (mesmo padrão de `fiap-tc-mecanica-infra-db`). Pré-requisitos: cluster + RDS já aplicados.
+
+```bash
+export TF_VAR_jwt_secret="$SECURITY_JWT_SECRET_KEY"   # mesma secret do k8s / Spring Boot
+./scripts/deploy-auth-lambda.sh lab ../fiap-tc-mecanica-java-original
+```
+
+Outputs: `auth_api_url`, `auth_execute_api_host` (wire automático nos patches Traefik). Ver [`infra/README.md`](infra/README.md).
+
+### SAM (alternativo)
+
 ```bash
 sam build
 sam deploy --guided \

@@ -1,0 +1,6 @@
+# Gerado por scripts/bootstrap_tf_lab.sh — copie de backend.hcl.example e ajuste o bucket.
+bucket         = "fiap-tc-lab-tfstate-ACCOUNT_ID"
+key            = "lab/lambda/terraform.tfstate"
+region         = "us-east-1"
+profile        = "fiap-lab"
+dynamodb_table = "terraform-lock-table"
