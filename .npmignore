@@ -1,0 +1,5 @@
+.*
+tests
+events/
+package-lock.json
+*.md

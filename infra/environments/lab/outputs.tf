@@ -1,15 +1,15 @@
-output "auth_api_url" {
-  value = module.auth_lambda.auth_api_url
+output "lambda_function_name" {
+  value = module.lambda_auth.lambda_function_name
 }
 
-output "auth_execute_api_host" {
-  value = module.auth_lambda.auth_execute_api_host
+output "api_gateway_url" {
+  value = module.lambda_auth.api_gateway_url
 }
 
-output "auth_function_arn" {
-  value = module.auth_lambda.auth_function_arn
+output "api_gateway_host" {
+  value = module.lambda_auth.api_gateway_host
 }
 
-output "auth_function_name" {
-  value = module.auth_lambda.auth_function_name
+output "k8s_cluster_name" {
+  value = module.lambda_auth.k8s_cluster_name
 }

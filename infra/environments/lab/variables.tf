@@ -1,17 +1,30 @@
 variable "profile" {
-  description = "AWS profile (null in CI — use env credentials)"
+  description = "AWS profile (alinhado ao backend S3; em CI use null + credenciais de ambiente)"
   type        = string
-  default     = "fiap-lab"
+  default     = null
   nullable    = true
 }
 
-variable "jwt_secret" {
-  description = "HS256 secret (Base64) — same as k8s SECURITY_JWT_SECRET_KEY"
+variable "remote_state_bucket" {
+  description = "Nome do bucket do estado remoto"
   type        = string
-  sensitive   = true
+  default     = "fiap-tc-lab-tfstate"
 }
 
-variable "tf_state_bucket" {
-  description = "S3 bucket for this stack and for reading k8s/db remote state (export TF_STATE_BUCKET or use bootstrap_tf_lab.sh)"
+variable "remote_state_infra_key" {
+  description = "Chave completa do estado da infra base (ex: lab/infra/terraform.tfstate)"
   type        = string
+  default     = "lab/infra/terraform.tfstate"
+}
+
+variable "remote_state_db_key" {
+  description = "Chave completa do estado do banco de dados (ex: lab/db/terraform.tfstate)"
+  type        = string
+  default     = "lab/db/terraform.tfstate"
+}
+
+variable "remote_state_region" {
+  description = "Região do bucket de estado remoto"
+  type        = string
+  default     = "us-east-1"
 }
