@@ -13,6 +13,16 @@ on:
         required: true
         type: string
         default: "us-east-1"
+      remote_state_infra_key:
+        description: 'Chave do estado remoto para a infraestrutura no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "infra"
+      remote_state_db_key:
+        description: 'Chave do estado remoto para o database no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "db"
 
 jobs:
   cleanup:
@@ -20,10 +30,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ENVIRONMENT: ${{ inputs.environment }}
+      DOMAIN: ${{ vars.PIPELINE_DOMAIN }}
       AWS_REGION: ${{ inputs.aws_region }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      BUCKET_NAME: ${{ vars.AWS_TERRAFORM_BUCKET_STATE }}
+      BUCKET_STATE_INFRA_KEY: ${{ inputs.remote_state_infra_key }}
+      BUCKET_STATE_DB_KEY: ${{ inputs.remote_state_db_key }}
 
     steps:
       - name: 🛒 Checkout
@@ -37,6 +51,12 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ inputs.aws_region }}
 
+      - name: 🔧 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
       - name: 🗑️ Run Cleanup Script
         run: |
-          ./scripts/cleanup.sh ${{ inputs.environment }} ${{ inputs.aws_region }}
+          chmod +x ${{ github.workspace }}/scripts/cleanup.sh
+          ${{ github.workspace }}/scripts/cleanup.sh
