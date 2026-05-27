@@ -1,51 +1,80 @@
-######################################################
-# Deploy Auth Lambda + API Gateway (+ wire Traefik no repo infra-k8s)
-# Ordem sugerida: infra-k8s setup → db deploy → este workflow → k8s deploy
-######################################################
-name: Deploy Auth Lambda
+name: Deploy
 
 on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        default: "lab"
+      aws_region:
+        required: true
+        type: string
+        default: "us-east-1"
+      remote_state_infra_key:
+        description: 'Chave do estado remoto para a infraestrutura no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "infra"
+      remote_state_db_key:
+        description: 'Chave do estado remoto para o database no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "db"
+
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_SESSION_TOKEN:
+        required: true
+
   workflow_dispatch:
     inputs:
       environment:
-        description: "Ambiente Terraform"
+        description: 'Ambiente (lab, prod, etc)'
         required: true
-        type: choice
-        options:
-          - lab
-          - develop
-        default: lab
+        type: string
+        default: "lab"
       aws_region:
-        description: "Região AWS"
+        description: 'AWS Region'
         required: true
         type: string
-        default: us-east-1
-      wire_k8s_manifests:
-        description: "Atualizar patches Traefik no repo infra-k8s"
-        required: true
-        type: boolean
-        default: true
-      k8s_repo:
-        description: "Repo infra-k8s (owner/name)"
+        default: "us-east-1"
+      remote_state_infra_key:
+        description: 'Chave do estado remoto para a infraestrutura no bucket (p.ex: lab/{key}/terraform.tfstate)'
         required: true
         type: string
-        default: ""
-
-permissions:
-  contents: write
+        default: "infra"
+      remote_state_db_key:
+        description: 'Chave do estado remoto para o database no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "db"
 
 jobs:
   deploy:
-    name: λ Auth Lambda — ${{ inputs.environment }}
+    name: λ Auth Lambda - ${{ inputs.environment }}
     runs-on: ubuntu-latest
     env:
-      TF_VAR_profile: ""
-      TF_VAR_jwt_secret: ${{ secrets.SECURITY_JWT_SECRET_KEY }}
-      TF_VAR_tf_state_bucket: ${{ vars.AWS_TF_BUCKET_NAME }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      DOMAIN: ${{ vars.PIPELINE_DOMAIN }}
+      NAMESPACE: "mecanica-${{ inputs.environment }}"
+      ROOT_DIR: ${{ github.workspace }}
+      AWS_REGION: ${{ inputs.aws_region }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      BUCKET_NAME: ${{ vars.AWS_TERRAFORM_BUCKET_STATE }}
+      BUCKET_STATE_INFRA_KEY: ${{ inputs.remote_state_infra_key }}
+      BUCKET_STATE_DB_KEY: ${{ inputs.remote_state_db_key }}
 
     steps:
-      - name: 📥 Checkout lambda
+      - name: 🛒 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🔐 AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -55,78 +84,19 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ inputs.aws_region }}
 
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-
-      - name: 📦 Build Lambda package
-        run: |
-          npm ci
-          npm run package
-          echo "TF_VAR_lambda_package_path=${{ github.workspace }}/lambda.zip" >> "$GITHUB_ENV"
-
       - name: 🏗️ Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
 
-      - name: 🛠️ Terraform Init
-        working-directory: infra/environments/${{ inputs.environment }}
-        run: |
-          BACKEND_KEY="lab/lambda/terraform.tfstate"
-          if [[ "${{ inputs.environment }}" == "develop" ]]; then
-            BACKEND_KEY="dev/lambda/terraform.tfstate"
-          fi
-          terraform init -input=false \
-            -backend-config="bucket=${{ vars.AWS_TF_BUCKET_NAME }}" \
-            -backend-config="key=${BACKEND_KEY}" \
-            -backend-config="region=${{ inputs.aws_region }}" \
-            -backend-config="dynamodb_table=${{ vars.TF_DYNAMODB_TABLE || 'terraform-lock-table' }}"
-
-      - name: 🏗️ Terraform Apply
-        working-directory: infra/environments/${{ inputs.environment }}
-        timeout-minutes: 20
-        run: |
-          terraform plan -out=tfplan
-          terraform apply -input=false -auto-approve tfplan
-
-      - name: 📋 Auth API URL
-        working-directory: infra/environments/${{ inputs.environment }}
-        run: |
-          echo "auth_api_url=$(terraform output -raw auth_api_url)" >> "$GITHUB_ENV"
-          echo "✅ $(terraform output -raw auth_api_url)"
-
-      - name: 📥 Checkout infra-k8s
-        if: inputs.wire_k8s_manifests
-        uses: actions/checkout@v4
+      - name: 📥 Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          repository: ${{ inputs.k8s_repo != '' && inputs.k8s_repo || format('{0}/fiap-tc-mecanica-infra-k8s', github.repository_owner) }}
-          path: infra-k8s
-          token: ${{ secrets.K8S_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          name: lambda-package
+          path: .
 
-      - name: 🔗 Wire Traefik gateway patches
-        if: inputs.wire_k8s_manifests
+      - name: 🚀 Run Deploy Script
+        working-directory: infra/environments/${{ inputs.environment }}
         run: |
-          chmod +x ./scripts/wire-traefik-auth-gateway.sh
-          ./scripts/wire-traefik-auth-gateway.sh \
-            "${{ inputs.environment }}" \
-            "${{ github.workspace }}/infra-k8s" \
-            infra-k8s
-
-      - name: 📤 Commit Traefik patches (infra-k8s)
-        if: inputs.wire_k8s_manifests
-        working-directory: infra-k8s
-        env:
-          ENV_NAME: ${{ inputs.environment }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "k8s/overlays/${ENV_NAME}/auth-apigw-"*.yaml || true
-          if git diff --staged --quiet; then
-            echo "Nenhuma alteração nos patches Traefik."
-            exit 0
-          fi
-          git commit -m "ci(lambda): wire auth API Gateway host for ${ENV_NAME} [skip ci]"
-          git push
+          chmod +x "${ROOT_DIR}/scripts/deploy.sh"
+          ${ROOT_DIR}/scripts/deploy.sh

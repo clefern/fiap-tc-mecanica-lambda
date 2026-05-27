@@ -7,9 +7,9 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint 'src/**/*.ts' 'tests/**/*.ts'",
+    "clean": "rm -rf dist",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "npm run build && rm -rf .lambda-package lambda.zip && mkdir -p .lambda-package && cp -r dist/. .lambda-package/ && cp package.json package-lock.json .lambda-package/ && npm ci --omit=dev --prefix .lambda-package && (cd .lambda-package && zip -rq ../lambda.zip .) && rm -rf .lambda-package",
     "local": "npx ts-node src/local.ts"
   },
   "dependencies": {

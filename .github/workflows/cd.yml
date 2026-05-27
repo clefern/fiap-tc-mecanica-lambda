@@ -1,0 +1,54 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente'
+        required: true
+        type: choice
+        options:
+          - "lab"
+          - "develop"
+        default: "lab"
+      aws_region:
+        description: 'Região AWS para o deployment'
+        required: true
+        type: string
+        default: "us-east-1"
+      aws_account_id:
+        description: 'Account ID AWS (opcional, necessário para cross-account)'
+        required: false
+        type: string
+      remote_state_infra_key:
+        description: 'Chave do estado remoto para a infraestrutura no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "infra"
+      remote_state_db_key:
+        description: 'Chave do estado remoto para o database no bucket (p.ex: lab/{key}/terraform.tfstate)'
+        required: true
+        type: string
+        default: "db"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 🐳 Build - ${{ inputs.environment }}
+    uses: ./.github/workflows/build.yml
+
+  deploy:
+    name: 🚀 Deploy - ${{ inputs.environment }}
+    needs: [ build ]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      aws_region: ${{ inputs.aws_region }}
+      remote_state_infra_key: ${{ inputs.remote_state_infra_key }}
+      remote_state_db_key: ${{ inputs.remote_state_db_key }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
